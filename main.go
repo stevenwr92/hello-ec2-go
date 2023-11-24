@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -17,15 +19,34 @@ func main() {
 	})
 
 	app.Get("/secret", func(c *fiber.Ctx) error {
-		secretName := "Encryptor-B2B" // Replace with your secret name
+		secretName := "Encryptor-B2B"
+		region := "ap-southeast-3"
 
-		secretValue, err := getSecret(secretName)
+		config, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 		if err != nil {
-			fmt.Println("Error retrieving secret:", err)
-			return c.Status(500).SendString("Error retrieving secret")
+			log.Fatal(err)
 		}
 
-		return c.SendString(fmt.Sprintf("Secret Value: %s", secretValue))
+		// Create Secrets Manager client
+		svc := secretsmanager.NewFromConfig(config)
+
+		input := &secretsmanager.GetSecretValueInput{
+			SecretId:     aws.String(secretName),
+			VersionStage: aws.String("AWSCURRENT"), // VersionStage defaults to AWSCURRENT if unspecified
+		}
+
+		result, err := svc.GetSecretValue(context.TODO(), input)
+		if err != nil {
+			// For a list of exceptions thrown, see
+			// https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+			log.Fatal(err.Error())
+		}
+
+		// Decrypts secret using the associated KMS key.
+		var secretString string = *result.SecretString
+
+		// Your code goes here.
+		fmt.Println(secretString)
 	})
 
 	err := app.Listen(":80")
@@ -34,24 +55,32 @@ func main() {
 	}
 }
 
-func getSecret(secretName string) (string, error) {
-	region := "ap-southeast-3" // Replace with your AWS region
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	})
-	if err != nil {
-		return "", err
-	}
+// func getSecret(secretName string) (string, error) {
+// 	region := "ap-southeast-3" // Replace with your AWS region
 
-	svc := secretsmanager.New(sess)
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId: aws.String(secretName),
-	}
+// 	// Load AWS credentials and configuration
+// 	config, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	result, err := svc.GetSecretValue(input)
-	if err != nil {
-		return "", err
-	}
+// 	// Create Secrets Manager client
+// 	svc := secretsmanager.NewFromConfig(config)
 
-	return *result.SecretString, nil
-}
+// 	input := &secretsmanager.GetSecretValueInput{
+// 		SecretId:     aws.String(secretName),
+// 		VersionStage: aws.String("AWSCURRENT"), // VersionStage defaults to AWSCURRENT if unspecified
+// 	}
+
+// 	result, err := svc.GetSecretValue(context.TODO(), input)
+// 	if err != nil {
+// 		// For a list of exceptions thrown, see
+// 		// https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+// 		return "", err
+// 	}
+
+// 	// Decrypts secret using the associated KMS key.
+// 	secretString := *result.SecretString
+
+// 	return secretString, nil
+// }
