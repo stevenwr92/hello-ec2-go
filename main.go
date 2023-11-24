@@ -21,6 +21,7 @@ func main() {
 
 		secretValue, err := getSecret(secretName)
 		if err != nil {
+			fmt.Println("Error retrieving secret:", err)
 			return c.Status(500).SendString("Error retrieving secret")
 		}
 
