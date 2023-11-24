@@ -47,6 +47,7 @@ func main() {
 
 		// Your code goes here.
 		fmt.Println(secretString)
+		return c.SendString(secretString)
 	})
 
 	err := app.Listen(":80")
