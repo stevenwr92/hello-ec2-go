@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -37,17 +39,30 @@ func main() {
 
 		result, err := svc.GetSecretValue(context.TODO(), input)
 		if err != nil {
-			// For a list of exceptions thrown, see
-			// https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
 			log.Fatal(err.Error())
 		}
 
-		// Decrypts secret using the associated KMS key.
 		var secretString string = *result.SecretString
-
-		// Your code goes here.
 		fmt.Println(secretString)
 		return c.SendString(secretString)
+	})
+
+	app.Get("/health", func(c *fiber.Ctx) error {
+		// Check the database connection
+		db, err := sql.Open("mysql", "devDBAdm:DB-B3azy*@tcp(devdbac.cluster-cry4cich1xjp.ap-southeast-3.rds.amazonaws.com:3306)/b2b_ximply_production")
+		if err != nil {
+			log.Fatal(err)
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+		defer db.Close()
+
+		err = db.Ping()
+		if err != nil {
+			log.Fatal(err)
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+
+		return c.SendString("Database connection is healthy!")
 	})
 
 	err := app.Listen(":80")
@@ -55,33 +70,3 @@ func main() {
 		panic(err)
 	}
 }
-
-// func getSecret(secretName string) (string, error) {
-// 	region := "ap-southeast-3" // Replace with your AWS region
-
-// 	// Load AWS credentials and configuration
-// 	config, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	// Create Secrets Manager client
-// 	svc := secretsmanager.NewFromConfig(config)
-
-// 	input := &secretsmanager.GetSecretValueInput{
-// 		SecretId:     aws.String(secretName),
-// 		VersionStage: aws.String("AWSCURRENT"), // VersionStage defaults to AWSCURRENT if unspecified
-// 	}
-
-// 	result, err := svc.GetSecretValue(context.TODO(), input)
-// 	if err != nil {
-// 		// For a list of exceptions thrown, see
-// 		// https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-// 		return "", err
-// 	}
-
-// 	// Decrypts secret using the associated KMS key.
-// 	secretString := *result.SecretString
-
-// 	return secretString, nil
-// }
