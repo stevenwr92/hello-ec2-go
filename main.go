@@ -58,8 +58,8 @@ func main() {
 
 		err = db.Ping()
 		if err != nil {
-			log.Fatal(err)
-			return c.SendStatus(fiber.StatusInternalServerError)
+			log.Printf("Database connection failed: %s", err)
+			return c.SendString("Database connection failed!")
 		}
 
 		// Retrieve additional information about the database
