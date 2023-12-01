@@ -62,7 +62,18 @@ func main() {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
 
-		return c.SendString("Database connection is healthy!")
+		// Retrieve additional information about the database
+		var version string
+		err = db.QueryRow("SELECT VERSION()").Scan(&version)
+		if err != nil {
+			log.Fatal(err)
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+
+		// Build response with database information
+		response := fmt.Sprintf("Database connection is healthy!\nDatabase Version: %s", version)
+
+		return c.SendString(response)
 	})
 
 	err := app.Listen(":80")
